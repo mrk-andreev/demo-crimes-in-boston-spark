@@ -1,0 +1,116 @@
+{
+  "paragraphs": [
+    {
+      "text": "import org.apache.spark.sql.expressions.Window\nimport org.apache.spark.sql.types.IntegerType\n\n\n    val extractCodeNameUdf \u003d udf((x: String) \u003d\u003e x.split(\"-\")(0))\n    \n    val window \u003d Window.partitionBy(\"DISTRICT\").orderBy(desc(\"count\"))\n\n    val dfCodes \u003d sqlContext\n      .read\n      .format(\"csv\")\n      .option(\"header\", \"true\")\n      .option(\"delimiter\", \",\")\n      .load(\"/offense_codes.csv\")\n      .withColumn(\"NAME\", extractCodeNameUdf($\"NAME\"))\n      .withColumnRenamed(\"CODE\", \"OFFENSE_CODE\")\n      .filter(expr(\"OFFENSE_CODE is not null\"))\n\n    val df \u003d sqlContext\n      .read\n      .format(\"csv\")\n      .option(\"header\", \"true\")\n      .option(\"delimiter\", \",\")\n      .load(\"/crime.csv\")\n      .filter(\"DISTRICT is not null\")\n\n    df.select(\"DISTRICT\").distinct()\n      .join(\n        df\n          .groupBy(\"DISTRICT\")\n          .count().withColumnRenamed(\"count\", \"crimes_total\"),\n        \"DISTRICT\")\n      .join(\n        df\n          .withColumn(\"YEAR_MONTH\", concat_ws(\"-\", df(\"YEAR\"), df(\"MONTH\")))\n          .groupBy(\"DISTRICT\", \"YEAR_MONTH\")\n          .count()\n          .groupBy(\"DISTRICT\")\n          .agg(expr(\"approx_percentile(count, 0.5)\").as(\"crimes_monthly\")),\n        \"DISTRICT\")\n      .join(\n        df\n          .filter(expr(\"OFFENSE_CODE is not null\"))\n          .withColumn(\"OFFENSE_CODE\", df(\"OFFENSE_CODE\").cast(IntegerType))\n          .groupBy(\"DISTRICT\", \"OFFENSE_CODE\")\n          .count()\n          .withColumn(\"rank\", row_number().over(window))\n          .sort(desc(\"count\"))\n          .where($\"rank\" \u003c\u003d 3)\n          .join(\n            dfCodes\n              .withColumn(\"OFFENSE_CODE\", dfCodes(\"OFFENSE_CODE\").cast(IntegerType)),\n            \"OFFENSE_CODE\"\n          )\n          .select(\"DISTRICT\", \"NAME\")\n          .groupBy(\"DISTRICT\")\n          .agg(concat_ws(\", \", collect_list(\"NAME\")) as \"frequent_crime_types\")\n          .select(\"DISTRICT\", \"frequent_crime_types\"),\n        \"DISTRICT\")\n      .join(\n        df\n          .filter(expr(\"Lat is not null\"))\n          .groupBy(\"DISTRICT\")\n          .agg(expr(\"avg(Lat)\").as(\"lat\")),\n        \"DISTRICT\"\n      )\n      .join(\n        df\n          .filter(expr(\"Long is not null\"))\n          .groupBy(\"DISTRICT\")\n          .agg(expr(\"avg(Long)\").as(\"lng\")),\n        \"DISTRICT\"\n      )\n      .show(5)",
+      "user": "anonymous",
+      "dateUpdated": "2021-02-06 18:46:20.870",
+      "config": {
+        "colWidth": 12.0,
+        "fontSize": 9.0,
+        "enabled": true,
+        "results": {},
+        "editorSetting": {
+          "language": "scala",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "editorMode": "ace/mode/scala"
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "results": {
+        "code": "SUCCESS",
+        "msg": [
+          {
+            "type": "TEXT",
+            "data": "+--------+------------+--------------+--------------------+------------------+------------------+\n|DISTRICT|crimes_total|crimes_monthly|frequent_crime_types|               lat|               lng|\n+--------+------------+--------------+--------------------+------------------+------------------+\n|      C6|       23460|           593|SICK/INJURED/MEDI...|42.212122584455464|-70.85561011772297|\n|      B2|       49945|          1298|VERBAL DISPUTE, V...| 42.31600367732802|-71.07569930654394|\n|     C11|       42530|          1115|M/V , INVESTIGATE...|  42.2926374090005|-71.05125995734385|\n|     E13|       17536|           445|SICK/INJURED/MEDI...|42.309803655710176|-71.09800478878341|\n|      B3|       35442|           907|VERBAL DISPUTE, V...| 42.28305944520107| -71.0789491418554|\n+--------+------------+--------------+--------------------+------------------+------------------+\nonly showing top 5 rows\n\nimport org.apache.spark.sql.expressions.Window\nimport org.apache.spark.sql.types.IntegerType\n\u001b[1m\u001b[34mextractCodeNameUdf\u001b[0m: \u001b[1m\u001b[32morg.apache.spark.sql.expressions.UserDefinedFunction\u001b[0m \u003d UserDefinedFunction(\u003cfunction1\u003e,StringType,Some(List(StringType)))\n\u001b[1m\u001b[34mwindow\u001b[0m: \u001b[1m\u001b[32morg.apache.spark.sql.expressions.WindowSpec\u001b[0m \u003d org.apache.spark.sql.expressions.WindowSpec@27abb0d7\n\u001b[1m\u001b[34mdfCodes\u001b[0m: \u001b[1m\u001b[32morg.apache.spark.sql.Dataset[org.apache.spark.sql.Row]\u001b[0m \u003d [OFFENSE_CODE: string, NAME: string]\n\u001b[1m\u001b[34mdf\u001b[0m: \u001b[1m\u001b[32morg.apache.spark.sql.Dataset[org.apache.spark.sql.Row]\u001b[0m \u003d [INCIDENT_NUMBER: string, OFFENSE_CODE: string ... 15 more fields]\n"
+          }
+        ]
+      },
+      "apps": [],
+      "runtimeInfos": {
+        "jobUrl": {
+          "propertyName": "jobUrl",
+          "label": "SPARK JOB",
+          "tooltip": "View in Spark web UI",
+          "group": "spark",
+          "values": [
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d382"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d383"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d384"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d385"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d386"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d387"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d388"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d389"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d390"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d391"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d392"
+            },
+            {
+              "jobUrl": "http://4580e3ac8d82:4040/jobs/job?id\u003d393"
+            }
+          ],
+          "interpreterSettingId": "spark"
+        }
+      },
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1612541505726_2088071571",
+      "id": "paragraph_1612541505726_2088071571",
+      "dateCreated": "2021-02-05 16:11:45.726",
+      "dateStarted": "2021-02-06 18:46:20.874",
+      "dateFinished": "2021-02-06 18:46:35.861",
+      "status": "FINISHED"
+    },
+    {
+      "user": "anonymous",
+      "config": {},
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1612636840256_1698493545",
+      "id": "paragraph_1612636840256_1698493545",
+      "dateCreated": "2021-02-06 18:40:40.256",
+      "status": "READY"
+    }
+  ],
+  "name": "Crimes-in-boston",
+  "id": "2FWBXV6M7",
+  "defaultInterpreterGroup": "spark",
+  "version": "0.9.0-preview2",
+  "noteParams": {},
+  "noteForms": {},
+  "angularObjects": {},
+  "config": {
+    "isZeppelinNotebookCronEnable": false
+  },
+  "info": {}
+}
