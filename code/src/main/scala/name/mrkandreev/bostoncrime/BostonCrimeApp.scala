@@ -13,9 +13,9 @@ object BostonCrimeApp {
   final val outputPath: String = conf.getString("outputPath")
   final val topCrimesCount = conf.getInt("topCrimesCount")
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     val sqlContext: SparkSession = SparkSession.builder
-      .appName("Simple Application")
+      .appName("BostonCrime Application")
       .master(master)
       .getOrCreate()
 
@@ -37,14 +37,12 @@ object BostonCrimeApp {
       .withColumnRenamed("CODE", "OFFENSE_CODE")
       .filter(expr("OFFENSE_CODE is not null"))
 
-    val dfSummary = df.select("DISTRICT").distinct()
+    df.select("DISTRICT").distinct()
       .join(evaluateTotalCrimes(df), "DISTRICT")
       .join(evaluateMedianCrimesPerMonth(df), "DISTRICT")
       .join(evaluateTopCrimes(df, dfCodes, topCrimesCount), "DISTRICT")
       .join(evaluateAvgLat(df), "DISTRICT")
       .join(evaluateAvgLong(df), "DISTRICT")
-
-    df
       .write
       .format("csv")
       .option("header", "true")
