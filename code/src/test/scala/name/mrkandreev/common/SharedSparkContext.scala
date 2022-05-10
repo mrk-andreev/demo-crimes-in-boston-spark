@@ -23,13 +23,13 @@ trait SharedSparkContext extends BeforeAndAfterAll {
 
   var conf = new SparkConf(false)
 
-  override def beforeAll() {
+  override def beforeAll(): Unit = {
     _sc = new SparkContext(SPARK_MASTER, APP_NAME, conf)
     _sqlContext = SparkSession.builder.config(_sc.getConf).getOrCreate()
     super.beforeAll()
   }
 
-  override def afterAll() {
+  override def afterAll(): Unit = {
     _sc.stop()
     super.afterAll()
   }
